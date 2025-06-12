@@ -1,0 +1,47 @@
+Pong Pseudo code
+
+init display
+draw menu
+	draw start button
+		on start ask for player user names for both players
+	draw leader board button
+		display top 10 players with their scores
+	draw match settings button
+		ask players how many matches they want to play and how many games per match
+		for games ask how many points are needed to win each game
+
+at game start draw player score, paddles, and ball (possibly add a match clock to see how long each round lasts)
+	#before game start determin which player will start the match
+		user promt
+			ask which player is to start i.e. player 1 or player 2
+
+	#draw paddles
+		draw left and right paddles
+			assign keys to each paddle i.e. a,d for the left paddle and left,right arrow for the right paddle
+	#draw ball
+		display bay at center of the screen
+			when game starts send play in indicated direction
+
+durring game 
+	 #when ball hits an object 
+	 	i.e. the top or bottom boundary or a paddle change direction. and play a bounce sound
+	#when the ball moves past a paddle
+		add a point to the player score and play a sound 
+			return ball to center of play field
+				scoring player gets to start the next game of the match
+
+
+
+#at match win
+	(possible addition of confetti to match win)
+	display user who won i.e. player 1/ player 2.
+	#ask if players want to play again or end the game.
+		if players want to play again ask how many games they want to play per match i.e. best of 3, 5, 7, 11 etc..
+
+#extra features if time and expertise allows
+	#computer player
+		allow a player to play against a basic AI instead of a human opponent
+		at start assign a random name for the computer
+	#games lib application
+	#future game additions
+		snake, asteroids, dig-dug, and others 
