@@ -1,40 +1,60 @@
 import pygame
+from pygame.locals import K_BACKSPACE, K_RETURN, K_KP_ENTER, MOUSEBUTTONDOWN, KEYDOWN
+from constants import COLOR_FG, COLOR_INACTIVE, COLOR_ACTIVE
+from utils     import draw_text
 
 class InputBox:
-    """Simple Pygame text-input box."""
-    def __init__(self, rect, font):
-        self.rect           = pygame.Rect(rect)
-        self.color_inactive = pygame.Color('lightskyblue3')
-        self.color_active   = pygame.Color('dodgerblue2')
-        self.color          = self.color_inactive
-        self.text           = ''
-        self.font           = font
-        self.txt_surf       = font.render('', True, self.color)
-        self.active         = False
+    """
+    A rectangular text-entry box.
+    Click to activate, type to enter text, Enter to submit.
+    """
 
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            # Toggle activation
-            if self.rect.collidepoint(event.pos):
-                self.active = not self.active
-            else:
-                self.active = False
-            self.color = self.color_active if self.active else self.color_inactive
+    def __init__(
+        self,
+        rect: tuple[int,int,int,int],
+        font: pygame.font.Font
+    ):
+        """
+        :param rect: (x, y, width, height) of the box
+        :param font: font used to render the text
+        """
+        self.rect   = pygame.Rect(rect)
+        self.font   = font
+        self.text   = ""        # current contents
+        self.active = False     # True when clicked into
 
-        if event.type == pygame.KEYDOWN and self.active:
-            if event.key == pygame.K_RETURN:
-                entered = self.text
-                self.text   = ''
-                self.txt_surf = self.font.render('', True, self.color)
-                return entered
-            elif event.key == pygame.K_BACKSPACE:
+    def handle_event(self, event: pygame.event.Event) -> str|None:
+        """
+        Process mouse and keyboard events.
+        :returns: the submitted text when Enter is pressed, else None.
+        """
+        if event.type == MOUSEBUTTONDOWN:
+            # Click activates/deactivates the box
+            self.active = self.rect.collidepoint(event.pos)
+
+        elif event.type == KEYDOWN and self.active:
+            if event.key in (K_RETURN, K_KP_ENTER):
+                # Submit current text
+                submitted = self.text
+                self.text = ""
+                return submitted
+            elif event.key == K_BACKSPACE:
                 self.text = self.text[:-1]
             else:
+                # Append typed character
                 self.text += event.unicode
-            self.txt_surf = self.font.render(self.text, True, self.color)
 
         return None
 
-    def draw(self, surface):
-        surface.blit(self.txt_surf, (self.rect.x+5, self.rect.y+5))
-        pygame.draw.rect(surface, self.color, self.rect, 2)
+    def draw(self, surface: pygame.Surface) -> None:
+        """
+        Render the current text (or placeholder) and border.
+        Active box is drawn in bright; inactive in muted color.
+        """
+        display_text = self.text if self.text else "..."
+        color = COLOR_ACTIVE if self.active else COLOR_INACTIVE
+        # Draw text centered in the box
+        draw_text(surface, display_text, self.rect.center, self.font, color=color)
+        # Draw border
+        border_color = COLOR_FG if self.active else COLOR_INACTIVE
+        pygame.draw.rect(surface, border_color, self.rect, width=2)

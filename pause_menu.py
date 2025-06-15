@@ -2,47 +2,55 @@ import pygame
 from utils import draw_text
 
 class PauseMenu:
-    def __init__(self, screen, font):
-        self.screen = screen
-        self.w, self.h = screen.get_size()
-        self.font = font
+    """
+    Overlay menu when paused: Resume, Settings, Main Menu, Quit.
+    """
 
-        # Define button rects (Resume, Settings, Main Menu, Quit)
-        btn_w, btn_h = 200, 50
-        x = (self.w - btn_w) // 2
-        start_y = self.h//3
-        gap = 70
+    def __init__(self, surface: pygame.Surface, font: pygame.font.Font):
+        self.surface = surface
+        self.font    = font
+        self.options = ["Resume", "Settings", "Main Menu", "Quit"]
+        self.selected = 0
 
-        self.buttons = {
-            'resume'    : pygame.Rect(x, start_y,        btn_w, btn_h),
-            'settings'  : pygame.Rect(x, start_y+gap,    btn_w, btn_h),
-            'main_menu' : pygame.Rect(x, start_y+2*gap,  btn_w, btn_h),
-            'quit'      : pygame.Rect(x, start_y+3*gap,  btn_w, btn_h),
-        }
+        # Layout
+        w, h = surface.get_size()
+        self.rects = []
+        for i, opt in enumerate(self.options):
+            rect = pygame.Rect(0, 0, 200, 40)
+            rect.center = (w//2, 200 + i*60)
+            self.rects.append((opt.lower().replace(" ", "_"), rect))
 
-    def draw(self):
-        # Dim background
-        overlay = pygame.Surface((self.w, self.h))
+    def draw(self) -> None:
+        """Draw transparent overlay and menu options."""
+        overlay = pygame.Surface(self.surface.get_size())
         overlay.set_alpha(180)
         overlay.fill((0,0,0))
-        self.screen.blit(overlay, (0,0))
+        self.surface.blit(overlay, (0,0))
 
-        # Title
-        draw_text(self.screen, "Paused", (self.w//2, self.h//4), self.font)
-        labels = {
-            'resume':    "Resume",
-            'settings':  "Settings",
-            'main_menu': "Main Menu",
-            'quit':      "Quit"
-        }
+        for idx, (key, rect) in enumerate(self.rects):
+            label = self.options[idx]
+            color = (255,255,0) if idx == self.selected else (255,255,255)
+            pygame.draw.rect(self.surface, color, rect, width=2)
+            draw_text(self.surface, label, rect.center, self.font, color=color)
 
-        for key, rect in self.buttons.items():
-            pygame.draw.rect(self.screen, (255,255,255), rect, 2)
-            draw_text(self.screen, labels[key], rect.center, self.font)
+    def handle_event(self, event: pygame.event.Event) -> str|None:
+        """
+        Return one of:
+          'resume', 'settings', 'main_menu', 'quit'
+        when the user activates the corresponding option.
+        """
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_DOWN, pygame.K_s):
+                self.selected = (self.selected + 1) % len(self.options)
+            elif event.key in (pygame.K_UP, pygame.K_w):
+                self.selected = (self.selected - 1) % len(self.options)
+            elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                return self.rects[self.selected][0]
 
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            for key, rect in self.buttons.items():
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for idx, (_, rect) in enumerate(self.rects):
                 if rect.collidepoint(event.pos):
-                    return key
+                    self.selected = idx
+                    return self.rects[idx][0]
+
         return None

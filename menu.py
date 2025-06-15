@@ -1,33 +1,50 @@
 import pygame
 from utils import draw_text
 
-class Menu:
-    def __init__(self, screen):
-        self.screen = screen
-        self.font   = pygame.font.Font(None, 48)
-        self.start_btn    = pygame.Rect(300, 150, 200, 50)
-        self.leader_btn   = pygame.Rect(300, 250, 200, 50)
-        self.settings_btn = pygame.Rect(300, 350, 200, 50)
+class MainMenu:
+    """
+    The main menu: displays options (Start, Settings, Leaderboard)
+    and allows navigation via arrows or mouse.
+    """
+    def __init__(self, surface: pygame.Surface, font: pygame.font.Font):
+        self.surface = surface
+        self.font    = font
 
-    def draw(self):
-        pygame.draw.rect(self.screen, (255,255,255), self.start_btn, 2)
-        draw_text(self.screen, "Start",       self.start_btn.center,    self.font)
+        self.options = ["Start", "Settings", "Leaderboard"]
+        self.selected_index = 0
 
-        pygame.draw.rect(self.screen, (255,255,255), self.leader_btn, 2)
-        draw_text(self.screen, "Leaderboard", self.leader_btn.center,  self.font)
+        # Precompute bounding rects for mouse clicks
+        self.option_rects = []
+        width, height = surface.get_size()
+        for i, label in enumerate(self.options):
+            text_surf = font.render(label, True, (255,255,255))
+            rect = text_surf.get_rect(center=(width//2, 200 + i*60))
+            self.option_rects.append((label, rect))
 
-        pygame.draw.rect(self.screen, (255,255,255), self.settings_btn, 2)
-        draw_text(self.screen, "Settings",    self.settings_btn.center, self.font)
+    def draw(self) -> None:
+        """Render all menu options, highlighting the selected one."""
+        for idx, (label, rect) in enumerate(self.option_rects):
+            is_selected = (idx == self.selected_index)
+            color = (255,255,0) if is_selected else (255,255,255)
+            draw_text(self.surface, label, rect.center, self.font, color=color)
 
-    def handle_event(self, event):
+    def handle_event(self, event: pygame.event.Event) -> str|None:
         """
-        Return 'start', 'leader', or 'settings' when clicked; else None.
+        Process key or mouse input.
+        Returns the chosen option label if activated.
         """
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.start_btn.collidepoint(event.pos):
-                return 'start'
-            if self.leader_btn.collidepoint(event.pos):
-                return 'leader'
-            if self.settings_btn.collidepoint(event.pos):
-                return 'settings'
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_DOWN, pygame.K_s):
+                self.selected_index = (self.selected_index + 1) % len(self.options)
+            elif event.key in (pygame.K_UP, pygame.K_w):
+                self.selected_index = (self.selected_index - 1) % len(self.options)
+            elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                return self.options[self.selected_index].lower()
+
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for idx, (label, rect) in enumerate(self.option_rects):
+                if rect.collidepoint(event.pos):
+                    self.selected_index = idx
+                    return label.lower()
+
         return None

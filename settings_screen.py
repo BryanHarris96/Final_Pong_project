@@ -1,114 +1,105 @@
 import pygame
-import json
-import os
 from utils import draw_text
 
-SETTINGS_FILE = 'settings.json'
-
 class SettingsScreen:
-    def __init__(self, screen, font, initial_settings=None):
-        self.screen = screen
-        self.w, self.h = screen.get_size()
-        self.font = font
+    """
+    Let players adjust:
+      - Number of matches
+      - Games per match
+      - Points needed per game
 
-        # Load or initialize settings
-        if initial_settings:
-            self.values = dict(initial_settings)
-        else:
-            self.values = self._load_persisted() or {
-                'num_matches': 1,
-                'games_per_match': 1,
-                'points_to_win': 1
-            }
+    Uses simple +/- buttons next to each value.
+    """
 
-        self.items = ['num_matches', 'games_per_match', 'points_to_win']
-        self.labels = {
-            'num_matches':     "Number of Matches",
-            'games_per_match': "Games per Match",
-            'points_to_win':   "Points to Win"
+    def __init__(
+        self,
+        surface: pygame.Surface,
+        font: pygame.font.Font,
+        initial_settings: dict|None = None
+    ):
+        self.surface = surface
+        self.font    = font
+
+        # Default or loaded
+        self.values = {
+            "num_matches":    3,
+            "games_per_match": 5,
+            "points_to_win":   11
         }
+        if initial_settings:
+            self.values.update(initial_settings)
 
-        # Layout: 8 rows (title, 3×(label+control), confirm), evenly spaced
-        rows = 8
-        step = self.h / (rows + 1)
-        self.ys = [step * i for i in range(1, rows+1)]
-        x_center = self.w // 2
-        btn_w, btn_h = 40, 40
+        # Button layout
+        w, h = surface.get_size()
+        self.fields = ["num_matches", "games_per_match", "points_to_win"]
+        self.labels = {
+            "num_matches":    "Matches:",
+            "games_per_match": "Games/Match:",
+            "points_to_win":   "Points/Game:"
+        }
+        self.buttons = {}  # (field, 'minus'/'plus') => pygame.Rect
+        for i, field in enumerate(self.fields):
+            y = 200 + i*60
+            # minus
+            r_minus = pygame.Rect(w//2 - 80, y, 30, 30)
+            # plus
+            r_plus  = pygame.Rect(w//2 + 50, y, 30, 30)
+            self.buttons[(field,"minus")] = r_minus
+            self.buttons[(field,"plus")]  = r_plus
 
-        # +/- buttons
-        self.decr = {}
-        self.incr = {}
-        for idx, key in enumerate(self.items):
-            controls_y = self.ys[2 + idx*2]  # rows 3,5,7
-            self.decr[key] = pygame.Rect(x_center - 80 - btn_w//2, controls_y - btn_h//2, btn_w, btn_h)
-            self.incr[key] = pygame.Rect(x_center + 80 - btn_w//2, controls_y - btn_h//2, btn_w, btn_h)
+        # Back button
+        self.back_rect = pygame.Rect(20,20,100,40)
 
-        # Confirm button (row 8)
-        y_confirm = self.ys[7]
-        self.confirm = pygame.Rect(x_center - 100, y_confirm - 25, 200, 50)
+    def draw(self) -> None:
+        """Render labels, current values, +/– buttons, and Back."""
+        overlay = pygame.Surface(self.surface.get_size())
+        overlay.set_alpha(200)
+        overlay.fill((0,0,0))
+        self.surface.blit(overlay, (0,0))
 
-        # Back button (top-left)
-        self.back = pygame.Rect(20, 20, 100, 40)
+        for i, field in enumerate(self.fields):
+            label = self.labels[field]
+            val   = self.values[field]
+            y     = 200 + i*60
+            draw_text(self.surface, label, (self.surface.get_width()//2 - 50, y+15), self.font)
+            draw_text(self.surface, str(val), (self.surface.get_width()//2, y+15), self.font)
 
-    def _load_persisted(self):
-        if os.path.isfile(SETTINGS_FILE):
-            try:
-                with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    if all(k in data for k in self.items):
-                        return data
-            except:
-                pass
-        return None
+            # minus button
+            r_minus = self.buttons[(field,"minus")]
+            pygame.draw.rect(self.surface, (255,255,255), r_minus, 2)
+            draw_text(self.surface, "-", r_minus.center, self.font)
 
-    def _save(self):
-        try:
-            with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(self.values, f, indent=2)
-        except Exception as e:
-            print("Error saving settings:", e)
+            # plus button
+            r_plus = self.buttons[(field,"plus")]
+            pygame.draw.rect(self.surface, (255,255,255), r_plus, 2)
+            draw_text(self.surface, "+", r_plus.center, self.font)
 
-    def draw(self):
-        self.screen.fill((0,0,0))
-        x_center = self.w//2
+        # Back button
+        pygame.draw.rect(self.surface, (255,255,255), self.back_rect, 2)
+        draw_text(self.surface, "Back", self.back_rect.center, self.font)
 
-        # Title (row1)
-        draw_text(self.screen, "Settings", (x_center, self.ys[0]), self.font)
+    def handle_event(self, event: pygame.event.Event) -> dict|str|None:
+        """
+        On click:
+         - If +/- clicked, adjust the value
+         - If Back clicked, return 'BACK'
+         - If Enter pressed, return self.values
+        """
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
+            return self.values
 
-        # Rows 2-7: label and controls
-        for idx, key in enumerate(self.items):
-            label_y    = self.ys[1 + idx*2]  # rows2,4,6
-            controls_y = self.ys[2 + idx*2]  # rows3,5,7
-            draw_text(self.screen, self.labels[key],  (x_center, label_y), self.font)
-            draw_text(self.screen, str(self.values[key]), (x_center, controls_y), self.font)
-            pygame.draw.rect(self.screen, (255,255,255), self.decr[key], 2)
-            draw_text(self.screen, "-", self.decr[key].center, self.font)
-            pygame.draw.rect(self.screen, (255,255,255), self.incr[key], 2)
-            draw_text(self.screen, "+", self.incr[key].center, self.font)
-
-        # Confirm (row8)
-        enabled = all(v >= 1 for v in self.values.values())
-        color = (255,255,255) if enabled else (100,100,100)
-        pygame.draw.rect(self.screen, color, self.confirm, 2)
-        draw_text(self.screen, "Confirm", self.confirm.center, self.font)
-
-        # Back
-        pygame.draw.rect(self.screen, (255,255,255), self.back, 2)
-        draw_text(self.screen, "Back", self.back.center, self.font)
-
-    def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            pos = event.pos
             # Back?
-            if self.back.collidepoint(event.pos):
-                return 'BACK'
-            # +/- adjustments
-            for key in self.items:
-                if self.decr[key].collidepoint(event.pos):
-                    self.values[key] = max(1, self.values[key] - 1)
-                if self.incr[key].collidepoint(event.pos):
-                    self.values[key] += 1
-            # Confirm?
-            if self.confirm.collidepoint(event.pos) and all(v >= 1 for v in self.values.values()):
-                self._save()
-                return dict(self.values)
+            if self.back_rect.collidepoint(pos):
+                return "BACK"
+            # +/- buttons
+            for (field,kind), rect in self.buttons.items():
+                if rect.collidepoint(pos):
+                    if kind == "minus" and self.values[field] > 1:
+                        self.values[field] -= 1
+                    elif kind == "plus":
+                        self.values[field] += 1
+                    return None
+
         return None
