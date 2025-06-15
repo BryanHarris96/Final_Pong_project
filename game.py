@@ -1,7 +1,9 @@
+# game.py
+
 import os
 import pygame
 
-from constants import SOUND_DIR
+from constants import SOUND_DIR, FONT_PATH
 from utils     import draw_text
 
 class Paddle(pygame.sprite.Sprite):
@@ -105,6 +107,7 @@ class Game:
         self.games_won = {self.player1:0, self.player2:0}
 
         self.current_server = first_player
+        # Use FONT_PATH (may be None) or default system font
         self.font = pygame.font.Font(FONT_PATH, 48)
 
     def reset_ball(self, to_right: bool) -> None:
@@ -118,8 +121,8 @@ class Game:
     def update(self) -> str|None:
         """
         Advance one frame: move paddles, move ball, detect scoring.
-        Returns the name of the player who just won the *game* (i.e. reached
-        points_to_win), or None otherwise.
+        Returns the name of the player who just won the *game*
+        (i.e. reached points_to_win), or None otherwise.
         """
         keys = pygame.key.get_pressed()
         for paddle in self.paddles:
@@ -162,7 +165,9 @@ class Game:
         self.reset_ball(to_right=(self.current_server==1))
 
     def draw(self) -> None:
-        """Draw paddles, ball, and the two point scores."""
+        """
+        Draw paddles, ball, and the two point scores at quarter widths.
+        """
         self.all_sprites.draw(self.surface)
         draw_text(self.surface, str(self.points[self.player1]),  (self.width*0.25, 50), self.font)
         draw_text(self.surface, str(self.points[self.player2]),  (self.width*0.75, 50), self.font)

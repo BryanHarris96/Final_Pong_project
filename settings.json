@@ -1,1 +1,5 @@
-{"num_matches": 3, "games_per_match": 5, "points_to_win": 1}
+{
+  "num_matches": 3,
+  "games_per_match": 5,
+  "points_to_win": 2
+}

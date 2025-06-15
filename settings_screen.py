@@ -1,105 +1,126 @@
+# settings_screen.py
+
 import pygame
 from utils import draw_text
 
 class SettingsScreen:
     """
-    Let players adjust:
+    Adjust tournament settings with dynamic +/- buttons:
       - Number of matches
       - Games per match
       - Points needed per game
-
-    Uses simple +/- buttons next to each value.
     """
 
     def __init__(
         self,
         surface: pygame.Surface,
         font: pygame.font.Font,
-        initial_settings: dict|None = None
+        initial_settings: dict | None = None
     ):
         self.surface = surface
         self.font    = font
 
-        # Default or loaded
+        # Default values or load provided ones
         self.values = {
-            "num_matches":    3,
+            "num_matches":     3,
             "games_per_match": 5,
-            "points_to_win":   11
+            "points_to_win":  11
         }
         if initial_settings:
             self.values.update(initial_settings)
 
-        # Button layout
-        w, h = surface.get_size()
+        # Fields and their display labels
         self.fields = ["num_matches", "games_per_match", "points_to_win"]
         self.labels = {
-            "num_matches":    "Matches:",
+            "num_matches":     "Matches:",
             "games_per_match": "Games/Match:",
             "points_to_win":   "Points/Game:"
         }
-        self.buttons = {}  # (field, 'minus'/'plus') => pygame.Rect
-        for i, field in enumerate(self.fields):
-            y = 200 + i*60
-            # minus
-            r_minus = pygame.Rect(w//2 - 80, y, 30, 30)
-            # plus
-            r_plus  = pygame.Rect(w//2 + 50, y, 30, 30)
-            self.buttons[(field,"minus")] = r_minus
-            self.buttons[(field,"plus")]  = r_plus
 
-        # Back button
-        self.back_rect = pygame.Rect(20,20,100,40)
+        # Vertical spacing
+        self.spacing = 80
+        w, h = self.surface.get_size()
+        total_height = self.spacing * (len(self.fields) - 1)
+        # Center the block vertically
+        self.start_y = (h // 2) - (total_height // 2)
+
+        # Back button in top-left
+        self.back_rect = pygame.Rect(20, 20, 100, 40)
 
     def draw(self) -> None:
-        """Render labels, current values, +/– buttons, and Back."""
+        """
+        Render labels, values, and +/- buttons without overlap,
+        by measuring text widths at runtime.
+        """
+        # Dim background
         overlay = pygame.Surface(self.surface.get_size())
         overlay.set_alpha(200)
         overlay.fill((0,0,0))
         self.surface.blit(overlay, (0,0))
 
+        w, _ = self.surface.get_size()
+
         for i, field in enumerate(self.fields):
-            label = self.labels[field]
-            val   = self.values[field]
-            y     = 200 + i*60
-            draw_text(self.surface, label, (self.surface.get_width()//2 - 50, y+15), self.font)
-            draw_text(self.surface, str(val), (self.surface.get_width()//2, y+15), self.font)
+            y_center = self.start_y + i * self.spacing
 
-            # minus button
-            r_minus = self.buttons[(field,"minus")]
-            pygame.draw.rect(self.surface, (255,255,255), r_minus, 2)
-            draw_text(self.surface, "-", r_minus.center, self.font)
+            # 1) Draw label
+            label_text = self.labels[field]
+            label_surf = self.font.render(label_text, True, (255,255,255))
+            label_rect = label_surf.get_rect(midleft=(w//2 - 200, y_center))
+            self.surface.blit(label_surf, label_rect)
 
-            # plus button
-            r_plus = self.buttons[(field,"plus")]
-            pygame.draw.rect(self.surface, (255,255,255), r_plus, 2)
-            draw_text(self.surface, "+", r_plus.center, self.font)
+            # 2) Draw minus button to the right of label
+            minus_rect = pygame.Rect(0, 0, 30, 30)
+            minus_rect.center = (label_rect.right + 30, y_center)
+            pygame.draw.rect(self.surface, (255,255,255), minus_rect, 2)
+            draw_text(self.surface, "-", minus_rect.center, self.font)
 
-        # Back button
+            # 3) Draw current value to the right of minus
+            val_text = str(self.values[field])
+            val_surf = self.font.render(val_text, True, (255,255,255))
+            val_rect = val_surf.get_rect(midleft=(minus_rect.right + 20, y_center))
+            self.surface.blit(val_surf, val_rect)
+
+            # 4) Draw plus button to the right of value
+            plus_rect = pygame.Rect(0, 0, 30, 30)
+            plus_rect.center = (val_rect.right + 30, y_center)
+            pygame.draw.rect(self.surface, (255,255,255), plus_rect, 2)
+            draw_text(self.surface, "+", plus_rect.center, self.font)
+
+            # Save button rects for click detection
+            setattr(self, f"{field}_minus_rect", minus_rect)
+            setattr(self, f"{field}_plus_rect", plus_rect)
+
+        # Draw Back button
         pygame.draw.rect(self.surface, (255,255,255), self.back_rect, 2)
         draw_text(self.surface, "Back", self.back_rect.center, self.font)
 
-    def handle_event(self, event: pygame.event.Event) -> dict|str|None:
+    def handle_event(self, event: pygame.event.Event) -> dict | str | None:
         """
-        On click:
-         - If +/- clicked, adjust the value
-         - If Back clicked, return 'BACK'
-         - If Enter pressed, return self.values
+        - Clicking +/- adjusts the corresponding setting (min 1).
+        - Clicking Back returns 'BACK'.
+        - Pressing Enter/Space returns the current values dict.
         """
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
             return self.values
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
-            # Back?
+
+            # Back button?
             if self.back_rect.collidepoint(pos):
                 return "BACK"
-            # +/- buttons
-            for (field,kind), rect in self.buttons.items():
-                if rect.collidepoint(pos):
-                    if kind == "minus" and self.values[field] > 1:
-                        self.values[field] -= 1
-                    elif kind == "plus":
-                        self.values[field] += 1
+
+            # Check each field's minus/plus rect
+            for field in self.fields:
+                minus_rect = getattr(self, f"{field}_minus_rect")
+                plus_rect  = getattr(self, f"{field}_plus_rect")
+
+                if minus_rect.collidepoint(pos) and self.values[field] > 1:
+                    self.values[field] -= 1
+                    return None
+                if plus_rect.collidepoint(pos):
+                    self.values[field] += 1
                     return None
 
         return None
